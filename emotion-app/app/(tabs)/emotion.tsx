@@ -180,13 +180,13 @@ export default function EmotionScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Test Emotion API</Text>
+      <Text style={styles.title}>Tommy the helper backend</Text>
       <Text style={styles.subtitle}>Maintiens le serveur Python allume sur le port 8000.</Text>
       <Text style={styles.subtitle}>API: {analyzeUrl}</Text>
 
       <Pressable style={[styles.button, isBusy && styles.buttonDisabled]} onPress={recordAndSend} disabled={isBusy}>
         <Text style={styles.buttonText}>
-          {isRecording ? 'Enregistrement...' : isSending ? 'Envoi...' : 'Enregistrer 3s et envoyer'}
+          {isRecording ? 'Enregistrement...' : isSending ? 'Envoi...' : 'Enregistrer et envoyer'}
         </Text>
       </Pressable>
 
