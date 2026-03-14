@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype AI - Avatars 3D Organiques</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome & Google Fonts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Three.js pour la 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- React & Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+        
+        @keyframes fade-in {
+            0% { transform: translateY(10px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        .dropdown-scroll::-webkit-scrollbar { width: 4px; }
+        .dropdown-scroll::-webkit-scrollbar-thumb { background: #3B82F6; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-[#F3F4F6] min-h-screen text-[#111827] overflow-hidden">
+    
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 1. CONFIGURATION DES ÉMOTIONS ---
+        const aiEmotions =[
+          {
+            label: "Calme",
+            color: "text-emerald-500",
+            border: "border-emerald-500",
+            bg: "bg-emerald-50",
+            eyeScale: { x: 1, y: 0.9 },
+            eyebrowTilt: 0.02,
+            eyebrowLift: 0.02,
+            mouthOpen: 0.34,
+            mouthWidth: 1.02,
+            mouthTilt: 0,
+            headTilt: 0.02
+          },
+          {
+            label: "Hésitant",
+            color: "text-violet-500",
+            border: "border-violet-500",
+            bg: "bg-violet-50",
+            eyeScale: { x: 0.92, y: 0.75 },
+            eyebrowTilt: -0.18,
+            eyebrowLift: 0.08,
+            mouthOpen: 0.22,
+            mouthWidth: 0.9,
+            mouthTilt: -0.08,
+            headTilt: -0.08
+          },
+          {
+            label: "Frustré",
+            color: "text-amber-600",
+            border: "border-amber-500",
+            bg: "bg-amber-50",
+            eyeScale: { x: 1.08, y: 0.45 },
+            eyebrowTilt: 0.36,
+            eyebrowLift: -0.02,
+            mouthOpen: 0.16,
+            mouthWidth: 1.15,
+            mouthTilt: -0.04,
+            headTilt: 0.05
+          },
+          {
+            label: "Paniqué",
+            color: "text-rose-500",
+            border: "border-rose-500",
+            bg: "bg-rose-50",
+            eyeScale: { x: 1.22, y: 1.28 },
+            eyebrowTilt: -0.28,
+            eyebrowLift: 0.16,
+            mouthOpen: 0.7,
+            mouthWidth: 0.82,
+            mouthTilt: 0,
+            headTilt: -0.03
+          },
+          {
+            label: "Satisfait",
+            color: "text-sky-500",
+            border: "border-sky-500",
+            bg: "bg-sky-50",
+            eyeScale: { x: 1.02, y: 0.2 },
+            eyebrowTilt: -0.06,
+            eyebrowLift: -0.01,
+            mouthOpen: 0.12,
+            mouthWidth: 1.22,
+            mouthTilt: 0.06,
+            headTilt: 0.04
+          }
+        ];
+
+        // --- 2. DONNÉES CLIENTS ---
+        const mockClients =[
+          {
+            id: 1, name: "Jean Dupont", policy: "POL-2026-9876", claim: "CLM-4512-AB", timer: "04:23",
+            suggestions:[
+              { id: 101, title: "Demander le rapport", desc: "Nécessaire pour l'assurance auto", icon: "fa-file-signature", color: "text-orange-500", bg: "bg-orange-500/20" },
+              { id: 102, title: "Confirmer la date", desc: "Date de l'incident manquante", icon: "fa-calendar-check", color: "text-purple-500", bg: "bg-purple-500/20" }
+            ],
+            advice: "Empathie recommandée. Le client attend depuis longtemps.",
+            context: {
+              incident: "Accident auto avec choc arrière",
+              wait: "Le client indique attendre depuis 3 semaines",
+              blocker: "Date exacte de l'incident non confirmée",
+              expectation: "Souhaite savoir quand le dossier pourra avancer",
+              nextStep: "Rapport et date à confirmer avant traitement"
+            }
+          },
+          {
+            id: 2, name: "Marie Curie", policy: "HAB-2025-1122", claim: "CLM-8899-XY", timer: "12:05",
+            suggestions:[
+              { id: 201, title: "Proposer offre Auto", desc: "Client éligible au multi-rabais", icon: "fa-car", color: "text-emerald-500", bg: "bg-emerald-500/20" }
+            ],
+            advice: "Opportunité de vente croisée détectée.",
+            context: {
+              incident: "Dégât des eaux limité dans la cuisine",
+              wait: "Le client suit déjà son dossier sans tension",
+              blocker: "Inventaire des biens a completer",
+              expectation: "Veut une confirmation simple des remboursements couverts",
+              nextStep: "Valider l'inventaire puis proposer le multi-produit",
+              urgency: "Faible",
+              risk: "Faible",
+              conversationFacts: [
+                "Le sinistre reste limité à une seule pièce",
+                "La cliente a déjà rassemblé une partie des justificatifs",
+                "Le ton reste constructif et orienté solution",
+                "Une opportunité de multi-équipement peut être proposée"
+              ]
+            }
+          },
+          {
+            id: 3, name: "Kevin Tremblay", policy: "AUTO-2024-8832", claim: "REC-2024-441", timer: "01:14",
+            suggestions:[
+              { id: 301, title: "Envoyer depanneuse", desc: "Vehicule immobilise sur l'autoroute", icon: "fa-truck", color: "text-red-500", bg: "bg-red-500/20" },
+              { id: 302, title: "Verifier blesses", desc: "Confirmer l'etat des passagers", icon: "fa-heart-pulse", color: "text-rose-500", bg: "bg-rose-500/20" }
+            ],
+            advice: "Intervention urgente a cadrer immediatement.",
+            context: {
+              incident: "Panne apres collision legere sur l'autoroute",
+              wait: "Le client appelle depuis le bord de la route et veut une prise en charge rapide",
+              blocker: "Localisation exacte encore floue",
+              expectation: "Attendre une assistance et un délai d'arrivée clair",
+              nextStep: "Confirmer la position puis déclencher l'assistance",
+              urgency: "Élevée",
+              risk: "Élevé",
+              conversationFacts: [
+                "Le client mentionne un vehicule non roulant",
+                "Le contexte routier augmente le besoin de sécurisation",
+                "La priorité est la localisation et l'assistance",
+                "Le client attend un engagement de délai immédiat"
+              ]
+            }
+          },
+          {
+            id: 4, name: "Sofia Benali", policy: "VOY-2026-1184", claim: "TRV-2208-FR", timer: "06:41",
+            suggestions:[
+              { id: 401, title: "Valider garanties", desc: "Confirmer la couverture voyage", icon: "fa-plane-departure", color: "text-sky-500", bg: "bg-sky-500/20" },
+              { id: 402, title: "Vérifier les factures", desc: "Hospitalisation déclarée à l'étranger", icon: "fa-file-medical", color: "text-cyan-500", bg: "bg-cyan-500/20" }
+            ],
+            advice: "Le dossier voyage demande des explications simples et rassurantes.",
+            context: {
+              incident: "Frais médicaux déclarés pendant un séjour à l'étranger",
+              wait: "La cliente dit avoir avancé les frais et attend un remboursement rapide",
+              blocker: "Factures et preuves de paiement encore partielles",
+              expectation: "Savoir ce qui est couvert et sous quel délai",
+              nextStep: "Recevoir les justificatifs manquants puis confirmer l'éligibilité",
+              urgency: "Moyenne",
+              risk: "Moyen",
+              conversationFacts: [
+                "La cliente a avancé des dépenses médicales",
+                "Le besoin principal est de clarifier la couverture",
+                "Les justificatifs transmis semblent incomplets",
+                "Le délai de remboursement est une source de tension"
+              ]
+            }
+          },
+          {
+            id: 5, name: "Lucas Martin", policy: "MRH-2026-5501", claim: "HAB-9102-PL", timer: "08:19",
+            suggestions:[
+              { id: 501, title: "Planifier l'expert", desc: "Dégâts déclarés après infiltration", icon: "fa-house-crack", color: "text-indigo-500", bg: "bg-indigo-500/20" },
+              { id: 502, title: "Confirmer les photos", desc: "Vérifier les preuves déjà transmises", icon: "fa-camera", color: "text-amber-500", bg: "bg-amber-500/20" }
+            ],
+            advice: "Le client veut surtout comprendre a quel moment un expert interviendra.",
+            context: {
+              incident: "Infiltration d'eau avec plafond endommagé dans le salon",
+              wait: "Le client dit n'avoir reçu aucun retour depuis sa déclaration de lundi",
+              blocker: "Disponibilité de l'expert non encore planifiée",
+              expectation: "Obtenir une date d'expertise et savoir s'il peut engager des réparations",
+              nextStep: "Programmer l'expertise puis confirmer les consignes avant travaux",
+              urgency: "Moyenne",
+              risk: "Moyen",
+              conversationFacts: [
+                "Le client craint une aggravation des dommages",
+                "Il demande s'il peut agir avant le passage de l'expert",
+                "Le manque de retour sur la planification crée de la frustration",
+                "Des photos ont déjà été envoyées au dossier"
+              ]
+            }
+          }
+        ];
+
+        const emotionActionMap = {
+          "Calme": {
+            title: "Ton pose",
+            cue: "Calmer",
+            icon: "fa-handshake",
+            color: "text-emerald-400",
+            bg: "bg-emerald-500/20",
+            advice: "Ton stable, cadence normale."
+          },
+          "Hésitant": {
+            title: "Reformuler",
+            cue: "Rassurer",
+            icon: "fa-comments",
+            color: "text-violet-400",
+            bg: "bg-violet-500/20",
+            advice: "Une idée à la fois, validation rapide."
+          },
+          "Frustré": {
+            title: "Desamorcer",
+            cue: "Apaiser",
+            icon: "fa-fire-extinguisher",
+            color: "text-amber-400",
+            bg: "bg-amber-500/20",
+            advice: "Empathie d'abord, action visible ensuite."
+          },
+          "Paniqué": {
+            title: "Guider",
+            cue: "Urgent",
+            icon: "fa-life-ring",
+            color: "text-rose-400",
+            bg: "bg-rose-500/20",
+            advice: "Une instruction claire a la fois."
+          },
+          "Satisfait": {
+            title: "Conclure",
+            cue: "Valider",
+            icon: "fa-thumbs-up",
+            color: "text-sky-400",
+            bg: "bg-sky-500/20",
+            advice: "Confirmer la suite pendant que l'échange est fluide."
+          }
+        };
+
+        // --- 3. MOTEUR 3D : CRÉATION DES AVATARS ---
+        
+        // Fonction utilitaire : Créer une bouche organique (Cavité + Langue)
+        const createOrganicMouth = (hasTongue = true) => {
+            const group = new THREE.Group();
+            
+            // Cavité buccale (demi-sphère orientée vers l'avant)
+            const cavityGeo = new THREE.SphereGeometry(0.25, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const cavityMat = new THREE.MeshBasicMaterial({ color: 0x2A0800, side: THREE.DoubleSide });
+            const cavity = new THREE.Mesh(cavityGeo, cavityMat);
+            cavity.rotation.x = Math.PI / 2; // Face caméra
+            
+            // Langue
+            let tongue = null;
+            if (hasTongue) {
+                const tongueGeo = new THREE.SphereGeometry(0.12, 16, 16);
+                const tongueMat = new THREE.MeshStandardMaterial({ color: 0xFF6B8B, roughness: 0.4 });
+                tongue = new THREE.Mesh(tongueGeo, tongueMat);
+                tongue.position.set(0, -0.08, 0.1);
+                tongue.scale.set(1, 0.5, 1);
+                cavity.add(tongue);
+            }
+
+            group.add(cavity);
+            return { group, cavity, tongue };
+        };
+
+        const createBrow = (color = 0x2A1A12, width = 0.42, height = 0.06, depth = 0.06) => {
+            const brow = new THREE.Mesh(
+                new THREE.BoxGeometry(width, height, depth),
+                new THREE.MeshStandardMaterial({ color, roughness: 0.75 })
+            );
+            brow.userData.baseY = 0;
+            return brow;
+        };
+
+        const createRoundedBar = (material, radius = 0.12, length = 0.4) => {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 16), material);
+            const capTop = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 16), material);
+            const capBottom = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 16), material);
+            capTop.position.y = length / 2;
+            capBottom.position.y = -length / 2;
+            group.add(body, capTop, capBottom);
+            return group;
+        };
+
+        const createHumanAvatar = ({
+            skin = 0xF0C7A8,
+            hair = 0x2C1E16,
+            shirt = 0xCBD5E1,
+            hairStyle = "short",
+            eyeColor = 0x3A2418
+        }) => {
+            const group = new THREE.Group();
+            const skinMat = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.52 });
+            const hairMat = new THREE.MeshStandardMaterial({ color: hair, roughness: 0.88 });
+            const shirtMat = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.8 });
+            const scleraMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+            const irisMat = new THREE.MeshBasicMaterial({ color: eyeColor });
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(1.28, 32, 32), skinMat);
+            head.scale.set(1, 1.08, 0.98);
+            group.add(head);
+
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.45, 18), skinMat);
+            neck.position.set(0, -1.3, 0.08);
+            group.add(neck);
+
+            const shoulders = new THREE.Mesh(new THREE.SphereGeometry(0.95, 24, 24), shirtMat);
+            shoulders.position.set(0, -2.08, 0);
+            shoulders.scale.set(1.15, 0.72, 0.85);
+            group.add(shoulders);
+
+            const hairTop = new THREE.Mesh(new THREE.SphereGeometry(1.08, 28, 28), hairMat);
+            hairTop.position.set(0, 0.62, -0.1);
+            hairTop.scale.set(1.02, 0.82, 0.88);
+            const hairBack = new THREE.Mesh(new THREE.BoxGeometry(1.75, 1.45, 0.72), hairMat);
+            hairBack.position.set(0, 0.12, -0.55);
+            hairBack.rotation.x = -0.08;
+            group.add(hairTop, hairBack);
+
+            if (hairStyle === "bob") {
+                const sideLeft = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.1, 0.36), hairMat);
+                sideLeft.position.set(-0.92, -0.08, 0.02);
+                sideLeft.rotation.z = -0.08;
+                const sideRight = sideLeft.clone();
+                sideRight.position.x = 0.95;
+                sideRight.rotation.z = 0.08;
+                const fringe = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.18, 0.18), hairMat);
+                fringe.position.set(0, 0.82, 1.02);
+                fringe.rotation.x = -0.06;
+                const backLength = new THREE.Mesh(new THREE.BoxGeometry(1.58, 1.3, 0.58), hairMat);
+                backLength.position.set(0, -0.02, -0.62);
+                group.add(sideLeft, sideRight, fringe, backLength);
+            } else if (hairStyle === "curly") {
+                [-0.7, -0.2, 0.35, 0.78].forEach((x, index) => {
+                    const curl = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16), hairMat);
+                    curl.position.set(x, 0.88 - index * 0.03, 0.78);
+                    group.add(curl);
+                });
+                const sideCurlLeft = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 16), hairMat);
+                sideCurlLeft.position.set(-0.92, 0.24, 0.18);
+                const sideCurlRight = sideCurlLeft.clone();
+                sideCurlRight.position.x = 0.92;
+                group.add(sideCurlLeft, sideCurlRight);
+            } else {
+                const fringe = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.16, 0.18), hairMat);
+                fringe.position.set(0, 0.88, 1.0);
+                fringe.rotation.x = -0.04;
+                group.add(fringe);
+            }
+
+            const leftEar = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), skinMat);
+            leftEar.position.set(-1.2, 0.02, 0.05);
+            const rightEar = leftEar.clone();
+            rightEar.position.x = 1.2;
+            group.add(leftEar, rightEar);
+
+            const createEye = () => {
+                const eye = new THREE.Group();
+                const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), scleraMat);
+                const iris = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), irisMat);
+                iris.position.z = 0.16;
+                eye.add(sclera, iris);
+                return eye;
+            };
+
+            const leftEye = createEye();
+            leftEye.position.set(-0.42, 0.24, 1.16);
+            const rightEye = createEye();
+            rightEye.position.set(0.42, 0.24, 1.16);
+            group.add(leftEye, rightEye);
+
+            const leftBrow = createBrow(hair, 0.42, 0.05, 0.05);
+            leftBrow.position.set(-0.43, 0.64, 1.12);
+            leftBrow.userData.baseY = leftBrow.position.y;
+            const rightBrow = createBrow(hair, 0.42, 0.05, 0.05);
+            rightBrow.position.set(0.43, 0.64, 1.12);
+            rightBrow.userData.baseY = rightBrow.position.y;
+            group.add(leftBrow, rightBrow);
+
+            const noseBridge = createRoundedBar(skinMat, 0.05, 0.18);
+            noseBridge.position.set(0, 0.02, 1.2);
+            const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), skinMat);
+            noseTip.position.set(0, -0.16, 1.26);
+            group.add(noseBridge, noseTip);
+
+            const mouth = createOrganicMouth(false);
+            mouth.group.position.set(0, -0.48, 1.12);
+            group.add(mouth.group);
+
+            return { group, leftEye, rightEye, mouth, brows: [leftBrow, rightBrow] };
+        };
+
+        // Générateurs d'avatars
+        const avatarBuilders = {
+            cat: () => {
+                const group = new THREE.Group();
+                const orangeMat = new THREE.MeshStandardMaterial({ color: 0xFF7A00, roughness: 0.7 });
+                const whiteMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.5 });
+                const blackMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+
+                // Tête
+                const head = new THREE.Mesh(new THREE.SphereGeometry(1.4, 32, 32), orangeMat);
+                group.add(head);
+
+                // Oreilles
+                const earGeo = new THREE.ConeGeometry(0.4, 1, 16);
+                const leftEar = new THREE.Mesh(earGeo, orangeMat);
+                leftEar.position.set(-0.8, 1.1, 0); leftEar.rotation.z = 0.3;
+                const rightEar = new THREE.Mesh(earGeo, orangeMat);
+                rightEar.position.set(0.8, 1.1, 0); rightEar.rotation.z = -0.3;
+                group.add(leftEar, rightEar);
+
+                // Yeux
+                const leftEye = new THREE.Group();
+                leftEye.add(new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16), whiteMat));
+                const lp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), blackMat);
+                lp.position.z = 0.22; leftEye.add(lp);
+                leftEye.position.set(-0.5, 0.3, 1.2);
+                
+                const rightEye = leftEye.clone();
+                rightEye.position.set(0.5, 0.3, 1.2);
+                group.add(leftEye, rightEye);
+
+                const leftBrow = createBrow(0x8A3D00, 0.34, 0.05, 0.05);
+                leftBrow.position.set(-0.5, 0.72, 1.12);
+                leftBrow.userData.baseY = leftBrow.position.y;
+                const rightBrow = createBrow(0x8A3D00, 0.34, 0.05, 0.05);
+                rightBrow.position.set(0.5, 0.72, 1.12);
+                rightBrow.userData.baseY = rightBrow.position.y;
+                group.add(leftBrow, rightBrow);
+
+                // Museau
+                const snout = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), whiteMat);
+                snout.position.set(0, -0.1, 1.3);
+                snout.scale.set(1.5, 0.8, 0.8);
+                const nose = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), new THREE.MeshStandardMaterial({color: 0xFF88AA}));
+                nose.position.set(0, 0.1, 1.6);
+                group.add(snout, nose);
+
+                // Bouche Organique
+                const mouth = createOrganicMouth(true);
+                mouth.group.position.set(0, -0.35, 1.25);
+                group.add(mouth.group);
+
+                return { group, leftEye, rightEye, mouth, brows: [leftBrow, rightBrow] };
+            },
+            monkey: () => {
+                const group = new THREE.Group();
+                const brownMat = new THREE.MeshStandardMaterial({ color: 0x6B4226, roughness: 0.8 });
+                const skinMat = new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 0.6 });
+                const blackMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+
+                // Tête
+                group.add(new THREE.Mesh(new THREE.SphereGeometry(1.3, 32, 32), brownMat));
+
+                // Visage
+                const face = new THREE.Mesh(new THREE.SphereGeometry(1.1, 32, 32), skinMat);
+                face.position.set(0, -0.1, 0.4);
+                group.add(face);
+
+                // Oreilles (grandes)
+                const earGeo = new THREE.SphereGeometry(0.4, 16, 16);
+                const leftEar = new THREE.Mesh(earGeo, skinMat);
+                leftEar.position.set(-1.3, 0, 0);
+                const rightEar = new THREE.Mesh(earGeo, skinMat);
+                rightEar.position.set(1.3, 0, 0);
+                group.add(leftEar, rightEar);
+
+                // Yeux
+                const eyeGeo = new THREE.SphereGeometry(0.15, 16, 16);
+                const leftEye = new THREE.Mesh(eyeGeo, blackMat);
+                leftEye.position.set(-0.4, 0.3, 1.3);
+                const rightEye = new THREE.Mesh(eyeGeo, blackMat);
+                rightEye.position.set(0.4, 0.3, 1.3);
+                group.add(leftEye, rightEye);
+
+                const leftBrow = createBrow(0x3B2418, 0.28, 0.05, 0.05);
+                leftBrow.position.set(-0.42, 0.62, 1.18);
+                leftBrow.userData.baseY = leftBrow.position.y;
+                const rightBrow = createBrow(0x3B2418, 0.28, 0.05, 0.05);
+                rightBrow.position.set(0.42, 0.62, 1.18);
+                rightBrow.userData.baseY = rightBrow.position.y;
+                group.add(leftBrow, rightBrow);
+
+                // Museau
+                const snout = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), skinMat);
+                snout.position.set(0, -0.3, 1.35);
+                snout.scale.set(1.2, 0.8, 1);
+                group.add(snout);
+
+                // Bouche Organique
+                const mouth = createOrganicMouth(true);
+                mouth.group.position.set(0, -0.45, 1.55);
+                group.add(mouth.group);
+
+                return { group, leftEye, rightEye, mouth, brows: [leftBrow, rightBrow] };
+            },
+            human: () => createHumanAvatar({ skin: 0xF3C8A9, hair: 0x2B1A14, shirt: 0xDBEAFE, hairStyle: "short", eyeColor: 0x2A2018 }),
+            advisor: () => createHumanAvatar({ skin: 0xE7B999, hair: 0x6B3F24, shirt: 0xE0F2FE, hairStyle: "bob", eyeColor: 0x3A2A1F }),
+            senior: () => createHumanAvatar({ skin: 0xD9AE92, hair: 0x707070, shirt: 0xE5E7EB, hairStyle: "curly", eyeColor: 0x37251A })
+        };
+
+        // Composant React Three.js
+        const ThreeJSAvatar = ({ type, isActive, emotionLabel }) => {
+            const mountRef = useRef(null);
+            const sceneRef = useRef(null);
+            const animationRef = useRef(null);
+            const avatarDataRef = useRef(null);
+
+            useEffect(() => {
+                const width = 220; const height = 220;
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+                camera.position.set(0, 0, 4.5);
+                sceneRef.current = scene;
+
+                const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                renderer.setSize(width, height);
+                mountRef.current.appendChild(renderer.domElement);
+
+                // Lumières soignées pour faire ressortir les volumes
+                scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+                dirLight.position.set(2, 5, 4);
+                scene.add(dirLight);
+                const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+                fillLight.position.set(-2, 0, 2);
+                scene.add(fillLight);
+
+                const animate = () => {
+                    animationRef.current = requestAnimationFrame(animate);
+                    
+                    if (avatarDataRef.current) {
+                        const { group, mouth } = avatarDataRef.current;
+                        const time = Date.now();
+                        const emotion = aiEmotions.find((item) => item.label === emotionLabel) || aiEmotions[0];
+
+                        // Flottaison naturelle du groupe complet
+                        group.position.y = Math.sin(time * 0.002) * 0.05;
+                        group.rotation.y = Math.sin(time * 0.001) * 0.05;
+                        group.rotation.z += (((isActive ? emotion.headTilt : 0) - group.rotation.z) * 0.12);
+
+                        // Animation de la bouche réaliste
+                        if (isActive) {
+                            // Onde complexe pour simuler la parole (syllabes)
+                            const talkScale = Math.max(0, Math.sin(time * 0.015) * Math.sin(time * 0.009));
+                            mouth.cavity.scale.y += ((emotion.mouthOpen + talkScale * 1.15) - mouth.cavity.scale.y) * 0.18;
+                            mouth.cavity.scale.x += ((emotion.mouthWidth - talkScale * 0.16) - mouth.cavity.scale.x) * 0.18;
+                            mouth.group.rotation.z += (emotion.mouthTilt - mouth.group.rotation.z) * 0.14;
+                            
+                            if(mouth.tongue) {
+                                mouth.tongue.position.y = -0.08 + talkScale * 0.05;
+                                mouth.tongue.scale.z = 1 + talkScale * 0.5;
+                            }
+                        } else {
+                            mouth.cavity.scale.y += (0.1 - mouth.cavity.scale.y) * 0.2;
+                            mouth.cavity.scale.x += (1 - mouth.cavity.scale.x) * 0.2;
+                            mouth.group.rotation.z += (0 - mouth.group.rotation.z) * 0.2;
+                        }
+                    }
+                    renderer.render(scene, camera);
+                };
+                animate();
+
+                return () => {
+                    cancelAnimationFrame(animationRef.current);
+                    if (mountRef.current) mountRef.current.removeChild(renderer.domElement);
+                };
+            }, []);
+
+            // Changement de Type d'Avatar
+            useEffect(() => {
+                const scene = sceneRef.current;
+                const oldGroup = scene.children.find(c => c.type === "Group");
+                if (oldGroup) scene.remove(oldGroup);
+
+                const builder = avatarBuilders[type] || avatarBuilders.cat;
+                const newAvatar = builder();
+                scene.add(newAvatar.group);
+                avatarDataRef.current = newAvatar;
+            }, [type]);
+
+            // Changement d'Emotions (Yeux)
+            useEffect(() => {
+                if(!avatarDataRef.current) return;
+                const { leftEye, rightEye, mouth, brows = [], group } = avatarDataRef.current;
+                const emotion = aiEmotions.find((item) => item.label === emotionLabel) || aiEmotions[0];
+
+                if (!isActive) {
+                    leftEye.scale.set(1, 0.1, 1); rightEye.scale.set(1, 0.1, 1);
+                    brows.forEach((brow) => {
+                        brow.rotation.z = 0;
+                    });
+                    group.rotation.z = 0;
+                    mouth.group.rotation.z = 0;
+                    return;
+                }
+
+                // Reset
+                leftEye.scale.set(emotion.eyeScale.x, emotion.eyeScale.y, 1);
+                rightEye.scale.set(emotion.eyeScale.x, emotion.eyeScale.y, 1);
+                if (emotionLabel === "Hésitant") rightEye.scale.set(emotion.eyeScale.x * 0.82, emotion.eyeScale.y * 0.86, 1);
+
+                    brows.forEach((brow, index) => {
+                        const direction = index === 0 ? 1 : -1;
+                        brow.rotation.z = emotion.eyebrowTilt * direction;
+                        brow.position.y = (brow.userData.baseY || 0.64) + emotion.eyebrowLift;
+                    });
+
+                group.rotation.z = emotion.headTilt;
+                mouth.group.rotation.z = emotion.mouthTilt;
+            }, [emotionLabel, isActive, type]);
+
+            return <div ref={mountRef} className="w-[220px] h-[220px] flex items-center justify-center"></div>;
+        };
+
+        // --- OUTILS TIMER ---
+        const parseTime = (timeStr) => {
+            const [min, sec] = timeStr.split(':').map(Number);
+            return min * 60 + sec;
+        };
+        const formatTime = (totalSeconds) => {
+            const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const s = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        };
+
+        // --- APPLICATION REACT PRINCIPALE ---
+        function DashboardApp() {
+          const [activeClient, setActiveClient] = useState(mockClients[0]);
+          const [isAiActive, setIsAiActive] = useState(true);
+          const [emotionIndex, setEmotionIndex] = useState(0);
+          const [isCallEnded, setIsCallEnded] = useState(false);
+          const [summaryIndex, setSummaryIndex] = useState(0);
+          
+          const [avatarType, setAvatarType] = useState('cat'); // cat, monkey, human
+          
+          const [callDuration, setCallDuration] = useState(parseTime(mockClients[0].timer));
+          const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+          useEffect(() => {
+              if (isCallEnded) return;
+              const timerInterval = setInterval(() => setCallDuration(prev => prev + 1), 1000);
+              return () => clearInterval(timerInterval);
+          }, [activeClient, isCallEnded]);
+
+          useEffect(() => {
+            if (!isAiActive || isCallEnded) return;
+            const interval = setInterval(() => {
+              setEmotionIndex((prev) => (prev + 1) % aiEmotions.length);
+            }, 4000);
+            return () => clearInterval(interval);
+          }, [isAiActive, isCallEnded]);
+
+          useEffect(() => {
+            if (!isAiActive || isCallEnded) return;
+            const interval = setInterval(() => {
+              setSummaryIndex((prev) => prev + 1);
+            }, 5000);
+            return () => clearInterval(interval);
+          }, [isAiActive, isCallEnded, activeClient.id]);
+
+          const handleClientSelect = (client) => {
+            setActiveClient(client);
+            setCallDuration(parseTime(client.timer));
+            setEmotionIndex(0);
+            setSummaryIndex(0);
+            setIsCallEnded(false);
+            setIsDropdownOpen(false);
+          };
+
+          const handleEndCall = () => {
+            setIsCallEnded(true);
+            setIsAiActive(false);
+            setIsDropdownOpen(false);
+          };
+
+          const handleResumeCall = () => {
+            setIsCallEnded(false);
+            setIsAiActive(true);
+          };
+
+          const currentEmotion = aiEmotions[emotionIndex];
+          const moodAction = emotionActionMap[currentEmotion.label];
+          const displayedSuggestions = activeClient.suggestions.map((sugg) => ({
+            ...sugg,
+            shortDesc: currentEmotion.label === "Paniqué"
+              ? "Priorite immediate"
+              : currentEmotion.label === "Frustré"
+              ? "Soyez direct"
+              : currentEmotion.label === "Hésitant"
+              ? "Validez avant suite"
+              : currentEmotion.label === "Satisfait"
+              ? "Confirmez la suite"
+              : "Rythme posé"
+          }));
+          const adaptiveSuggestions = [
+            {
+              id: `mood-${currentEmotion.label}`,
+              title: moodAction.title,
+              shortDesc: moodAction.cue,
+              icon: moodAction.icon,
+              color: moodAction.color,
+              bg: moodAction.bg,
+              isMood: true
+            },
+            ...displayedSuggestions
+          ];
+          const liveSummaryPool = [
+            activeClient.context?.incident || "Incident en cours de qualification",
+            activeClient.context?.wait || "Aucun délai sensible signalé",
+            activeClient.context?.blocker ? `Blocage actuel : ${activeClient.context.blocker}` : "Aucun blocage majeur détecté",
+            activeClient.context?.expectation ? `Attente client: ${activeClient.context.expectation}` : "Besoin client a preciser",
+            activeClient.context?.nextStep ? `Suite proposée : ${activeClient.context.nextStep}` : "Suite à définir",
+            ...(activeClient.context?.conversationFacts || []),
+            currentEmotion.label === "Paniqué"
+              ? "Le client semble stressé et a besoin d'être guidé pas à pas"
+              : currentEmotion.label === "Frustré"
+              ? "Le client exprime de l'impatience face au délai ou au manque d'avancement"
+              : currentEmotion.label === "Hésitant"
+              ? "Le client cherche à être rassuré avant de confirmer la suite"
+              : currentEmotion.label === "Satisfait"
+              ? "Le client réagit positivement et accepte plus facilement les prochaines étapes"
+              : "Le client reste coopératif et ouvert aux clarifications"
+          ];
+          const liveConversationSummary = Array.from({ length: 3 }, (_, offset) => {
+            return liveSummaryPool[(summaryIndex + offset) % liveSummaryPool.length];
+          });
+          const summaryMeta = [
+            { label: "Urgence", value: activeClient.context?.urgency || "Moyenne", tone: activeClient.context?.urgency === "Élevée" ? "red" : activeClient.context?.urgency === "Faible" ? "emerald" : "amber" },
+            { label: "Risque", value: activeClient.context?.risk || "Moyen", tone: activeClient.context?.risk === "Élevé" ? "red" : activeClient.context?.risk === "Faible" ? "emerald" : "amber" },
+            { label: "Blocage", value: activeClient.context?.blocker || "Aucun", tone: activeClient.context?.blocker ? "slate" : "emerald" }
+          ];
+          const summaryPoints = isCallEnded
+            ? [
+                activeClient.context?.incident || `Dossier ${activeClient.claim} traite`,
+                activeClient.context?.expectation || "Le client attend un retour clair sur la suite",
+                activeClient.context?.nextStep || `Prochaine action: ${activeClient.suggestions[0]?.title || 'A confirmer'}`
+              ]
+            : liveConversationSummary;
+
+          return (
+            <div className="flex h-screen w-full" onClick={() => isDropdownOpen && setIsDropdownOpen(false)}>
+              
+              {/* SIDEBAR */}
+              <aside className="w-20 lg:w-64 bg-white border-r border-gray-200 flex flex-col h-screen py-6 px-4 hidden md:flex relative z-10 transition-all">
+                <div className="flex items-center justify-center mb-10">
+                  <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
+                    <i className="fas fa-layer-group"></i>
+                  </div>
+                </div>
+                <nav className="flex-1 space-y-4">
+                  <a href="#" className="flex items-center space-x-4 px-3 py-3 bg-gray-100 text-[#111827] rounded-xl font-semibold">
+                    <i className="fas fa-border-all text-lg"></i>
+                    <span className="hidden lg:block">Dashboard</span>
+                  </a>
+                  <a href="#" className="flex items-center space-x-4 px-3 py-3 text-gray-400 hover:text-[#111827] hover:bg-gray-50 rounded-xl font-medium transition-colors">
+                    <i className="fas fa-phone-alt text-lg"></i>
+                    <span className="hidden lg:block">Appels Live</span>
+                  </a>
+                </nav>
+              </aside>
+
+              {/* MAIN CONTENT */}
+              <main className="flex-1 flex flex-col h-screen overflow-y-auto p-6 lg:p-10">
+                
+                {/* HEADER */}
+                <header className="flex items-center justify-between mb-8">
+                  <div className="bg-white rounded-full px-5 py-2.5 shadow-sm border border-gray-200 flex items-center space-x-3">
+                    <i className="fas fa-brain text-blue-500"></i>
+                    <span className="font-bold text-sm">Système IA Connecté</span>
+                  </div>
+
+                  <div className="relative bg-white rounded-full flex items-center px-5 py-2 w-64 shadow-sm border border-gray-200 focus-within:ring-2 focus-within:ring-blue-500/20">
+                      <i className="fas fa-search text-gray-400 mr-3"></i>
+                      <input type="text" placeholder="Rechercher..." className="bg-transparent border-none outline-none text-sm w-full font-medium" />
+                  </div>
+                </header>
+
+                {/* TITRE ET WIDGET DROPDOWN APPEL EN COURS */}
+                <div className="flex justify-between items-center mb-6">
+                  <h1 className="text-2xl font-bold tracking-tight">Analyse d'Appel</h1>
+                  
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                      <div 
+                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                          className={`bg-white rounded-full px-5 py-2 flex items-center space-x-4 shadow-sm border ${isDropdownOpen ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200'} transition-all cursor-pointer`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white shadow-inner ${isCallEnded ? 'bg-red-500' : isAiActive ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`}>
+                          <i className="fas fa-phone-alt text-xs"></i>
+                        </div>
+                        <div className="flex flex-col min-w-[130px]">
+                          <p className={`text-[10px] font-bold uppercase tracking-wider ${isCallEnded ? 'text-red-500' : isAiActive ? 'text-emerald-500' : 'text-gray-400'}`}>
+                            {isCallEnded ? 'Appel terminé' : 'Appel en cours'} <span className="text-[#111827] ml-1 bg-gray-100 px-1.5 py-0.5 rounded font-mono">{formatTime(callDuration)}</span>
+                          </p>
+                          <p className="font-bold text-sm text-[#111827]">{activeClient.name}</p>
+                        </div>
+                        <i className={`fas fa-chevron-down text-gray-400 text-xs transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
+                      </div>
+
+                      {isDropdownOpen && (
+                          <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
+                              <div className="bg-gray-50 px-4 py-2 border-b border-gray-100">
+                                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Basculer d'appel</span>
+                              </div>
+                              <div className="max-h-60 overflow-y-auto dropdown-scroll">
+                                  {mockClients.map(client => (
+                                      <div 
+                                          key={client.id} 
+                                          onClick={() => handleClientSelect(client)}
+                                          className={`px-5 py-4 flex items-center justify-between cursor-pointer border-b border-gray-50 transition-colors ${activeClient.id === client.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                      >
+                                          <div className="flex flex-col">
+                                              <span className={`font-bold text-sm ${activeClient.id === client.id ? 'text-blue-600' : 'text-[#111827]'}`}>{client.name}</span>
+                                              <span className="text-[11px] text-gray-500 font-medium">Dossier: {client.claim}</span>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+                  </div>
+                </div>
+
+                {/* GRILLE PRINCIPALE */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* PANEL 1 : IA AVATAR 3D */}
+                  <div className={`bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col relative h-[500px] transition-opacity duration-500 ${!isAiActive ? 'opacity-90' : ''}`}>
+                    
+                    <div className="w-full flex justify-between items-center mb-4">
+                        <span className="font-bold text-sm bg-gray-100 text-[#111827] px-3 py-1.5 rounded-lg border border-gray-200">Assistant IA</span>
+                        
+                        {/* SÉLECTEUR D'AVATARS */}
+                        <div className="flex bg-gray-100 rounded-full p-1 border border-gray-200 shadow-inner">
+                            {[
+                                {id:'cat', icon:'🐱', label:'Chat'}, 
+                                {id:'monkey', icon:'🐵', label:'Singe'}, 
+                                {id:'human', icon:'🧑', label:'Humain'},
+                                {id:'advisor', icon:'👩', label:'Conseillère'},
+                                {id:'senior', icon:'🧓', label:'Senior'}
+                            ].map(av => (
+                                <button 
+                                    key={av.id} onClick={() => setAvatarType(av.id)} title={av.label}
+                                    className={`w-9 h-9 rounded-full flex items-center justify-center text-lg transition-all ${avatarType === av.id ? 'bg-white shadow-sm scale-110 z-10' : 'opacity-60 hover:opacity-100 grayscale hover:grayscale-0'}`}
+                                >{av.icon}</button>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div className={`flex-1 flex flex-col items-center justify-center transition-all duration-500 ${!isAiActive ? 'grayscale opacity-60' : ''}`}>
+                      <div className="relative w-56 h-56 bg-gradient-to-br from-gray-50 to-gray-200 rounded-full shadow-inner border border-gray-200 flex items-center justify-center mb-6">
+                          
+                          {/* LE MOTEUR 3D */}
+                          <ThreeJSAvatar type={avatarType} isActive={isAiActive && !isCallEnded} emotionLabel={isAiActive && !isCallEnded ? currentEmotion.label : "Inactif"} />
+                          
+                          {/* Indicateur Micro */}
+                          <div className={`absolute -bottom-2 -right-2 z-20 w-11 h-11 rounded-full flex items-center justify-center shadow-xl border-[3px] transition-all duration-500 ${isAiActive && !isCallEnded ? `${currentEmotion.border} bg-[#111827]` : 'border-gray-300 bg-white'}`}>
+                            <i className={`fas ${isCallEnded ? 'fa-phone-slash' : 'fa-microphone'} text-sm ${isAiActive && !isCallEnded ? 'text-white' : 'text-gray-500'}`}></i>
+                          </div>
+                      </div>
+                      
+                      {/* TEXTE AFFICHANT L'ÉMOTION */}
+                      <div className="flex flex-col items-center w-full px-4">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Humeur Détectée</p>
+                          <div className={`w-full py-3 rounded-xl text-sm font-bold flex justify-center items-center space-x-2 border shadow-sm transition-all duration-500 ${isCallEnded ? 'bg-red-50 text-red-600 border-red-200' : isAiActive ? `${currentEmotion.bg} ${currentEmotion.color} ${currentEmotion.border}` : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                            <i className={`fas ${isCallEnded ? 'fa-phone-slash' : isAiActive ? 'fa-heartbeat animate-pulse' : 'fa-power-off'} text-xs`}></i>
+                            <span key={emotionIndex + "label"} className="animate-fade-in uppercase tracking-wide">
+                              {isCallEnded ? 'Appel terminé' : isAiActive ? currentEmotion.label : 'Analyse coupée'}
+                            </span>
+                          </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={() => setIsAiActive(!isAiActive)}
+                        className={`w-full py-3 rounded-xl font-bold text-sm border-2 flex items-center justify-center space-x-2 transition-all active:scale-95 ${isAiActive ? 'bg-white border-gray-200 text-gray-600 hover:border-red-500 hover:text-red-600 hover:bg-red-50' : 'bg-emerald-50 border-emerald-500 text-emerald-600'}`}
+                      >
+                        <i className="fas fa-power-off"></i>
+                        <span>{isAiActive ? "Couper l'IA" : "Relancer l'IA"}</span>
+                      </button>
+                      <button 
+                        onClick={isCallEnded ? handleResumeCall : handleEndCall}
+                        className={`w-full py-3 rounded-xl font-bold text-sm border-2 flex items-center justify-center space-x-2 transition-all active:scale-95 ${isCallEnded ? 'bg-emerald-50 border-emerald-500 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 border-red-500 text-red-600 hover:bg-red-100'}`}
+                      >
+                        <i className={`fas ${isCallEnded ? 'fa-phone' : 'fa-phone-slash'}`}></i>
+                        <span>{isCallEnded ? "Reprendre" : "Terminer"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* PANEL 2 : DETAILS CLIENT */}
+                  <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col h-[500px]">
+                    <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4">
+                      <h2 className="text-lg font-bold">Fiche Client</h2>
+                    </div>
+
+                    <div className="space-y-6 flex-1">
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">Nom Complet</span>
+                        <span className="font-extrabold text-[#111827] text-xl">{activeClient.name}</span>
+                      </div>
+                      
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">Numéro de Police</span>
+                        <span className="font-bold text-[#111827] font-mono bg-gray-100 px-3 py-1.5 rounded-lg w-max">
+                          {activeClient.policy}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">Dossier de Sinistre</span>
+                        <span className="font-bold text-[#111827] font-mono bg-gray-100 px-3 py-1.5 rounded-lg w-max">
+                          {activeClient.claim}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PANEL 3 : SUGGESTIONS (Dark Mode) */}
+                  <div className="bg-[#111827] text-white rounded-3xl p-8 shadow-xl flex flex-col h-[500px]">
+                    <div className="flex items-center space-x-2 mb-6 border-b border-gray-800 pb-4">
+                        <i className="fas fa-bolt text-yellow-400 text-lg"></i>
+                        <h2 className="text-xl font-bold">Actions Suggérées</h2>
+                    </div>
+
+                    {isAiActive && !isCallEnded ? (
+                      <>
+                        <div className="space-y-2.5 flex-1 overflow-y-auto pr-2 dropdown-scroll">
+                          {adaptiveSuggestions.map(sugg => (
+                            <button key={sugg.id} className={`w-full text-left active:scale-[0.98] transition-all px-4 py-3 rounded-xl flex items-center justify-between border cursor-pointer ${sugg.isMood ? 'bg-white/10 border-white/20 hover:bg-white/15' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                              <div className="flex items-center space-x-3 min-w-0">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${sugg.bg} ${sugg.color}`}>
+                                <i className={`fas ${sugg.icon}`}></i>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-sm text-white leading-tight truncate">{sugg.title}</p>
+                                <p className="text-[10px] uppercase tracking-wide text-gray-400 mt-1">{sugg.shortDesc}</p>
+                              </div>
+                              </div>
+                              <i className={`fas fa-chevron-right text-xs shrink-0 ${sugg.isMood ? 'text-white/70' : 'text-gray-500'}`}></i>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-800">
+                          <div className="flex items-start space-x-3 text-[11px] font-medium text-blue-300 bg-blue-500/10 p-3 rounded-lg">
+                            <i className="fas fa-info-circle mt-0.5"></i> 
+                            <span>{moodAction.advice}</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
+                        <i className={`fas ${isCallEnded ? 'fa-phone-slash' : 'fa-microphone-slash'} text-4xl mb-4`}></i>
+                        <p className="font-bold text-sm">{isCallEnded ? 'Appel terminé' : 'Mode manuel'}</p>
+                        <p className="text-xs mt-2 text-gray-400">{isCallEnded ? "Plus aucune action en temps réel." : 'Suggestions désactivées.'}</p>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+                <section className="mt-6 bg-white rounded-3xl border border-gray-100 shadow-sm px-6 py-5">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-gray-400 mb-2">Resume de conversation</p>
+                      <h3 className="text-lg font-bold text-[#111827]">
+                        {isCallEnded ? "Synthèse de l'appel" : "Points clés en direct"}
+                      </h3>
+                    </div>
+                    <div className={`inline-flex items-center space-x-2 rounded-full px-3 py-1.5 text-[11px] font-bold w-max ${isCallEnded ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                      <i className={`fas ${isCallEnded ? 'fa-check-circle' : 'fa-wave-square'}`}></i>
+                      <span>{isCallEnded ? "Résumé final" : "Résumé en direct"}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {summaryPoints.map((point, index) => (
+                      <div key={index} className="rounded-2xl bg-[#F8FAFC] border border-gray-100 px-4 py-4 flex items-start space-x-3">
+                        <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isCallEnded ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                          {index + 1}
+                        </div>
+                        <p className="text-sm font-medium text-[#334155] leading-snug">{point}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {summaryMeta.map((item) => (
+                      <div key={item.label} className="rounded-2xl border border-gray-100 px-4 py-3 bg-white flex items-center justify-between space-x-3">
+                        <span className="text-[11px] uppercase tracking-[0.18em] text-gray-400 font-bold">{item.label}</span>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                          item.tone === 'red'
+                            ? 'bg-red-50 text-red-600'
+                            : item.tone === 'emerald'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : item.tone === 'amber'
+                            ? 'bg-amber-50 text-amber-600'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {item.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {!isCallEnded && (
+                    <div className="mt-3 flex items-center space-x-2 text-[11px] text-gray-500">
+                      <i className="fas fa-circle text-[6px] text-blue-500"></i>
+                      <span>Les points défilent automatiquement pour faire remonter les faits utiles sans surcharger l'écran.</span>
+                    </div>
+                  )}
+                </section>
+              </main>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DashboardApp />);
+    </script>
+</body>
+</html>
