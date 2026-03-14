@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype Interactif - Live AI</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome & Google Fonts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- React & Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+        
+        /* Animation d'apparition douce pour l'emoji */
+        @keyframes fade-in-scale {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-fade-in { animation: fade-in-scale 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    </style>
+</head>
+<body class="bg-[#EAEBEE] min-h-screen text-[#0F0F0F] overflow-hidden" style="background-image: radial-gradient(circle at 100% 0%, #F5F6F8 0%, transparent 50%), radial-gradient(circle at 0% 100%, #FFFFFF 0%, transparent 50%)">
+    
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- 1. LISTE DES ÉMOTIONS (Défilement toutes les 5 sec) ---
+        const aiEmotions =[
+          { label: "Calme", icon: "😺", color: "text-green-500", border: "border-green-500" },
+          { label: "Hésitant", icon: "😼", color: "text-purple-400", border: "border-purple-400" },
+          { label: "Frustré", icon: "😾", color: "text-[#FF6B35]", border: "border-[#FF6B35]" },
+          { label: "Paniqué", icon: "🙀", color: "text-red-500", border: "border-red-500" },
+          { label: "Satisfait", icon: "😸", color: "text-blue-500", border: "border-blue-500" }
+        ];
+
+        // --- 2. DONNÉES DES CLIENTS ---
+        const mockClients =[
+          {
+            id: 1, name: "Jean Dupont", policy: "POL-2026-9876", claim: "CLM-4512-AB", status: "En attente", timer: "04:23",
+            suggestions:[
+              { id: 101, title: "Demander le rapport", desc: "Nécessaire pour l'assurance auto", icon: "fa-file-signature", color: "text-[#FF6B35]", bg: "bg-[#FF6B35]/20" },
+              { id: 102, title: "Confirmer la date", desc: "Date de l'incident manquante", icon: "fa-calendar-check", color: "text-purple-400", bg: "bg-purple-500/20" }
+            ], advice: "Empathie recommandée. Le client attend depuis 3 semaines."
+          },
+          {
+            id: 2, name: "Marie Curie", policy: "HAB-2025-1122", claim: "CLM-8899-XY", status: "En cours", timer: "12:05",
+            suggestions:[
+              { id: 201, title: "Proposer offre Auto", desc: "Client éligible au multi-rabais", icon: "fa-car", color: "text-green-400", bg: "bg-green-500/20" },
+              { id: 202, title: "Valider l'inventaire", desc: "Vérifier les biens déclarés", icon: "fa-clipboard-list", color: "text-blue-400", bg: "bg-blue-500/20" }
+            ], advice: "Opportunité de vente croisée détectée."
+          },
+          {
+            id: 3, name: "Kevin Tremblay", policy: "AUTO-2024-8832", claim: "REC-2024-441", status: "Urgence", timer: "01:14",
+            suggestions:[
+              { id: 301, title: "Envoyer dépanneuse", desc: "Véhicule immobilisé sur l'autoroute", icon: "fa-truck-pickup", color: "text-red-400", bg: "bg-red-500/20" },
+              { id: 302, title: "Rassurer le client", desc: "Priorité absolue, protocole d'urgence", icon: "fa-heartbeat", color: "text-[#FF6B35]", bg: "bg-[#FF6B35]/20" }
+            ], advice: "Intervention d'urgence requise. Restez directif."
+          }
+        ];
+
+        function DashboardApp() {
+          const [activeClient, setActiveClient] = useState(mockClients[0]);
+          const [isAiActive, setIsAiActive] = useState(true);
+          const[emotionIndex, setEmotionIndex] = useState(0);
+
+          // Effet : Changer d'émotion toutes les 5 secondes
+          useEffect(() => {
+            if (!isAiActive) return; // Si l'IA est coupée, on arrête de changer
+            
+            const interval = setInterval(() => {
+              setEmotionIndex((prevIndex) => (prevIndex + 1) % aiEmotions.length);
+            }, 5000);
+
+            return () => clearInterval(interval); // Nettoyage
+          }, [isAiActive]);
+
+          const handleClientChange = (e) => {
+            const clientId = parseInt(e.target.value);
+            setActiveClient(mockClients.find(c => c.id === clientId));
+            setEmotionIndex(0); // Reset l'émotion au changement de client
+          };
+
+          const currentEmotion = aiEmotions[emotionIndex];
+
+          return (
+            <div className="flex h-screen w-full">
+              
+              {/* SIDEBAR */}
+              <aside className="w-64 bg-white rounded-r-[2rem] shadow-[10px_0_30px_rgba(0,0,0,0.02)] flex flex-col h-screen py-8 px-6 hidden md:flex relative z-10">
+                <div className="flex items-center justify-center mb-12">
+                  <div className="w-12 h-12 bg-[#FF6B35] text-white rounded-full flex items-center justify-center text-2xl shadow-lg shadow-[#FF6B35]/30 hover:scale-110 active:scale-90 transition-transform cursor-pointer">
+                    <i className="fas fa-fire"></i>
+                  </div>
+                </div>
+
+                <nav className="flex-1 space-y-2">
+                  {/* Boutons du menu interactifs */}
+                  <a href="#" className="flex items-center space-x-4 px-4 py-3 bg-[#F4F5F7] text-[#0F0F0F] font-bold rounded-2xl relative overflow-hidden active:scale-95 transition-transform">
+                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1.5 h-8 bg-[#0F0F0F] rounded-r-md"></div>
+                    <i className="fas fa-border-all text-xl ml-1"></i>
+                    <span>Overview</span>
+                  </a>
+                  <a href="#" className="flex items-center justify-between px-4 py-3 text-[#8C8C8C] hover:text-[#0F0F0F] hover:bg-[#F4F5F7] rounded-2xl transition-all active:scale-95">
+                    <div className="flex items-center space-x-4">
+                      <i className="far fa-comment-dots text-xl"></i>
+                      <span>Messages</span>
+                    </div>
+                    <span className="bg-red-500 text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full shadow-sm">2</span>
+                  </a>
+                  <a href="#" className="flex items-center space-x-4 px-4 py-3 text-[#8C8C8C] hover:text-[#0F0F0F] hover:bg-[#F4F5F7] rounded-2xl transition-all active:scale-95">
+                    <i className="far fa-calendar-alt text-xl"></i>
+                    <span>Calendar</span>
+                  </a>
+                  <a href="#" className="flex items-center space-x-4 px-4 py-3 text-[#8C8C8C] hover:text-[#0F0F0F] hover:bg-[#F4F5F7] rounded-2xl transition-all active:scale-95">
+                    <i className="fas fa-chart-bar text-xl"></i>
+                    <span>Statistics</span>
+                  </a>
+                </nav>
+
+                {/* Profil (cliquable) */}
+                <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col items-center relative group cursor-pointer active:scale-95 transition-transform">
+                  <div className="absolute -bottom-8 -left-6 w-12 h-24 bg-[#0F0F0F] rounded-tr-full opacity-100"></div>
+                  <div className="absolute -bottom-8 -right-6 w-12 h-24 bg-[#0F0F0F] rounded-tl-full opacity-100"></div>
+                  <img src="https://i.pravatar.cc/150?img=11" alt="Mark John" className="w-14 h-14 rounded-full border-4 border-white shadow-md relative z-10 group-hover:border-gray-200 transition-colors" />
+                  <span className="font-bold text-sm mt-3 relative z-10 text-white md:text-[#0F0F0F] group-hover:text-[#FF6B35] transition-colors">Mark John</span>
+                </div>
+              </aside>
+
+              {/* MAIN CONTENT */}
+              <main className="flex-1 flex flex-col h-screen overflow-y-auto p-10">
+                
+                {/* HEADER */}
+                <header className="flex items-center justify-between mb-12">
+                  <div className="flex items-center space-x-4 bg-white rounded-full p-2 pr-6 shadow-sm border border-gray-50 hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex items-center space-x-2 text-[#0F0F0F] font-bold text-sm pl-4 pr-6 border-r border-gray-100">
+                      <i className="far fa-calendar text-[#FF6B35]"></i>
+                      <span>14 March</span>
+                    </div>
+                    <div className="flex items-center space-x-3 pl-2">
+                      <div className="w-8 h-8 rounded-full bg-[#FF6B35] flex items-center justify-center text-white shadow-inner">
+                        <i className="fas fa-fire text-xs"></i>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-[#8C8C8C] leading-tight">Fire cases</p>
+                        <p className="text-xs font-bold text-[#0F0F0F]">+120</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-6">
+                    {/* Pilules d'action du header */}
+                    <div className="flex space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white shadow-md hover:-translate-y-1 hover:shadow-lg active:scale-90 transition-all cursor-pointer">
+                        <i className="fas fa-car text-sm"></i>
+                      </div>
+                      <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white shadow-md hover:-translate-y-1 hover:shadow-lg active:scale-90 transition-all cursor-pointer">
+                        <i className="fas fa-capsules text-sm"></i>
+                      </div>
+                    </div>
+
+                    <div className="relative bg-white rounded-full flex items-center px-5 py-3 w-72 shadow-sm border border-gray-50 group focus-within:ring-2 focus-within:ring-[#FF6B35]/20 transition-all">
+                      <i className="fas fa-search text-gray-400 mr-3 group-focus-within:text-[#FF6B35] transition-colors"></i>
+                      <input type="text" placeholder="Rechercher un dossier..." className="bg-transparent border-none outline-none text-sm w-full font-medium placeholder-gray-400" />
+                    </div>
+                    
+                    <div className="w-12 h-12 rounded-full bg-[#0F0F0F] flex items-center justify-center text-white shadow-lg relative cursor-pointer hover:bg-gray-800 active:scale-90 transition-all">
+                      <i className="fas fa-bell"></i>
+                      <div className="absolute top-0 right-0 w-3 h-3 bg-white rounded-full flex items-center justify-center animate-bounce">
+                        <div className="w-2 h-2 bg-[#FF6B35] rounded-full"></div>
+                      </div>
+                    </div>
+                  </div>
+                </header>
+
+                {/* TITRE ET SÉLECTEUR */}
+                <div className="flex justify-between items-center mb-6">
+                  <h1 className="text-2xl font-bold">Dossiers & Assurances</h1>
+                  
+                  {/* Sélecteur de dossier animé */}
+                  <div className={`bg-white rounded-full px-4 py-2 flex items-center space-x-3 shadow-sm border ${isAiActive ? 'border-green-100 hover:border-[#FF6B35]' : 'border-gray-200'} transition-colors cursor-pointer active:scale-95`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${isAiActive ? 'bg-[#FF6B35] animate-pulse' : 'bg-gray-400'}`}>
+                      <i className="fas fa-phone-alt text-[10px]"></i>
+                    </div>
+                    <div className="flex flex-col">
+                      <p className={`text-[9px] font-bold uppercase tracking-wider ${isAiActive ? 'text-[#FF6B35]' : 'text-gray-400'}`}>
+                        {isAiActive ? 'Analyse en cours' : 'Appel manuel'} - {activeClient.timer}
+                      </p>
+                      <select 
+                        className="bg-transparent font-bold text-[13px] text-[#0F0F0F] outline-none cursor-pointer appearance-none pr-4 relative z-10"
+                        value={activeClient.id}
+                        onChange={handleClientChange}
+                      >
+                        {mockClients.map(client => (
+                          <option key={client.id} value={client.id}>{client.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <i className="fas fa-chevron-down text-[#8C8C8C] text-[10px] pointer-events-none"></i>
+                  </div>
+                </div>
+
+                {/* GRILLE PRINCIPALE */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  
+                  {/* PANEL 1 : IA AVATAR */}
+                  <div className={`bg-white rounded-[2rem] p-6 shadow-sm flex flex-col relative h-[420px] transition-all duration-500 border border-white hover:shadow-lg ${!isAiActive ? 'opacity-90' : ''}`}>
+                    <div className="w-full flex justify-between items-center mb-4">
+                      <span className="font-bold text-sm bg-[#F4F5F7] text-[#0F0F0F] px-4 py-2 rounded-full border border-gray-100 shadow-inner">Assistant IA</span>
+                      <i className={`fas fa-robot text-xl transition-colors ${isAiActive ? 'text-[#FF6B35]' : 'text-gray-300'}`}></i>
+                    </div>
+                    
+                    <div className={`flex-1 flex flex-col items-center justify-center transition-all duration-500 ${isAiActive ? 'animate-[bounce_4s_ease-in-out_infinite]' : 'grayscale opacity-50'}`}>
+                      <div className="w-28 h-28 bg-[#F4F5F7] rounded-full flex items-center justify-center relative mb-5 shadow-inner overflow-hidden border border-gray-100">
+                        {/* Emoji qui change toutes les 5 secondes avec animation CSS */}
+                        <span key={emotionIndex} className="text-6xl animate-fade-in absolute">
+                          {isAiActive ? currentEmotion.icon : '💤'}
+                        </span>
+                        
+                        <div className={`absolute -bottom-1 -right-1 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md border-2 transition-colors duration-500 ${isAiActive ? currentEmotion.border : 'border-gray-200'}`}>
+                          <i className={`fas fa-bolt transition-colors duration-500 ${isAiActive ? currentEmotion.color : 'text-gray-400'}`}></i>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs font-bold text-[#8C8C8C] uppercase tracking-wider mb-2">Humeur (Live)</p>
+                      
+                      <div className={`px-5 py-2 rounded-full text-sm font-bold flex items-center space-x-2 shadow-sm transition-all duration-500 ${isAiActive ? 'bg-[#0F0F0F] text-white' : 'bg-gray-200 text-gray-500'}`}>
+                        <span key={emotionIndex + "label"} className="animate-fade-in">
+                          {isAiActive ? currentEmotion.label : 'En Veille'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* BOUTON DÉSACTIVER (Avec gros effet visuel) */}
+                    <button 
+                      onClick={() => setIsAiActive(!isAiActive)}
+                      className={`mt-auto w-full group relative overflow-hidden bg-white border-2 rounded-2xl py-3.5 flex items-center justify-center space-x-2 transition-all duration-300 shadow-sm active:scale-95 ${isAiActive ? 'border-gray-100 hover:border-red-500 hover:bg-red-50' : 'border-green-200 hover:border-green-500 hover:bg-green-50'}`}
+                    >
+                      <i className={`fas fa-power-off transition-colors ${isAiActive ? 'text-gray-400 group-hover:text-red-500' : 'text-green-500'}`}></i>
+                      <span className={`font-bold text-sm transition-colors ${isAiActive ? 'text-[#8C8C8C] group-hover:text-red-600' : 'text-green-600'}`}>
+                        {isAiActive ? "Désactiver l'IA" : "Réactiver l'IA"}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* PANEL 2 : DETAILS CLIENT */}
+                  <div className="bg-white rounded-[2rem] p-8 shadow-sm flex flex-col relative h-[420px] hover:shadow-lg transition-shadow border border-white">
+                    <div className="flex justify-between items-center mb-8">
+                      <h2 className="text-lg font-bold">Détails du Client</h2>
+                      {isAiActive && (
+                        <div className="flex items-center space-x-2 bg-green-50 text-green-600 px-3 py-1.5 rounded-full text-[11px] font-bold border border-green-100">
+                          <i className="fas fa-microphone animate-pulse"></i>
+                          <span>Complétion auto</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-6 flex-1">
+                      <div className="flex flex-col border-b border-gray-100 pb-3 group cursor-default">
+                        <div className="flex items-center space-x-2 text-[#8C8C8C] mb-1 transition-colors group-hover:text-[#FF6B35]">
+                          <i className="fas fa-user text-xs"></i>
+                          <span className="text-xs font-bold uppercase tracking-wide">Nom</span>
+                        </div>
+                        <span className="font-extrabold text-[#0F0F0F] text-lg">{activeClient.name}</span>
+                      </div>
+                      
+                      <div className="flex flex-col border-b border-gray-100 pb-3 group cursor-default">
+                        <div className="flex items-center space-x-2 text-[#8C8C8C] mb-1 transition-colors group-hover:text-[#FF6B35]">
+                          <i className="fas fa-shield-alt text-xs"></i>
+                          <span className="text-xs font-bold uppercase tracking-wide">Numéro de Police</span>
+                        </div>
+                        <span className="font-bold text-[#0F0F0F] font-mono bg-[#F4F5F7] inline-block px-3 py-1 rounded-md w-max border border-transparent group-hover:border-gray-200 transition-colors">
+                          {activeClient.policy}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col border-b border-gray-100 pb-3 group cursor-default">
+                        <div className="flex items-center space-x-2 text-[#8C8C8C] mb-1 transition-colors group-hover:text-[#FF6B35]">
+                          <i className="fas fa-file-invoice text-xs"></i>
+                          <span className="text-xs font-bold uppercase tracking-wide">Sinistre</span>
+                        </div>
+                        <span className="font-bold text-[#0F0F0F] font-mono bg-[#F4F5F7] inline-block px-3 py-1 rounded-md w-max border border-transparent group-hover:border-gray-200 transition-colors">
+                          {activeClient.claim}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PANEL 3 : SUGGESTIONS (Boutons interactifs) */}
+                  <div className="bg-[#0F0F0F] text-white rounded-[2rem] p-8 shadow-xl flex flex-col relative h-[420px] hover:shadow-2xl transition-shadow">
+                    <div className="flex justify-between items-start mb-8">
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <i className="fas fa-lightbulb text-[#FF6B35] text-lg"></i>
+                          <h2 className="text-xl font-bold">Actions Suggérées</h2>
+                        </div>
+                        <p className="text-xs text-gray-400 font-medium ml-6">Analyse en temps réel</p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 hover:scale-110 active:scale-95 transition-all">
+                        <i className="fas fa-ellipsis-h text-xs"></i>
+                      </div>
+                    </div>
+
+                    {isAiActive ? (
+                      <>
+                        <div className="space-y-4 flex-1">
+                          {/* Boutons d'action avec effets de Hover et Active (Scale) */}
+                          {activeClient.suggestions.map(sugg => (
+                            <button key={sugg.id} className="w-full text-left bg-white/5 hover:bg-white/10 hover:translate-x-2 hover:border-l-4 hover:border-l-[#FF6B35] active:scale-[0.98] transition-all duration-200 p-4 rounded-2xl flex items-center space-x-4 border border-white/10 group cursor-pointer">
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${sugg.bg} ${sugg.color}`}>
+                                <i className={`fas ${sugg.icon} text-lg`}></i>
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm text-white">{sugg.title}</p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">{sugg.desc}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between cursor-help group">
+                          <div className="flex items-center space-x-2 text-[11px] font-bold text-blue-400 group-hover:text-blue-300 transition-colors">
+                            <i className="fas fa-info-circle animate-pulse"></i> 
+                            <span>{activeClient.advice}</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50">
+                        <i className="fas fa-eye-slash text-4xl mb-4 text-gray-500"></i>
+                        <p className="font-bold text-sm">Mode Manuel</p>
+                        <p className="text-xs mt-2 text-gray-400">L'analyse vocale est suspendue.</p>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </main>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DashboardApp />);
+    </script>
+</body>
+</html>
