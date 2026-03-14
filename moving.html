@@ -111,21 +111,60 @@
           }
         ];
 
+        const emotionClickConfig = {
+          enabled: true,
+          trigger: "global_click",
+          fallbackSequence: ["Calme", "Hésitant", "Frustré", "Paniqué", "Satisfait"],
+          ignoredSelectors: ["button", "input", "select", "a"],
+          canChangeEmotion: ({ isAiActive, isCallEnded }) => isAiActive && !isCallEnded
+        };
+
         // --- 2. DONNÉES CLIENTS ---
         const mockClients =[
           {
-            id: 1, name: "Jean Dupont", policy: "POL-2026-9876", claim: "CLM-4512-AB", timer: "04:23",
+            id: 1, name: "Louis-David", policy: "POL-2026-9876", claim: "CLM-4512-AB", timer: "04:23",
             suggestions:[
               { id: 101, title: "Demander le rapport", desc: "Nécessaire pour l'assurance auto", icon: "fa-file-signature", color: "text-orange-500", bg: "bg-orange-500/20" },
               { id: 102, title: "Confirmer la date", desc: "Date de l'incident manquante", icon: "fa-calendar-check", color: "text-purple-500", bg: "bg-purple-500/20" }
             ],
             advice: "Empathie recommandée. Le client attend depuis longtemps.",
+            emotionSequence: ["Frustré", "Hésitant", "Calme", "Satisfait"],
             context: {
               incident: "Accident auto avec choc arrière",
               wait: "Le client indique attendre depuis 3 semaines",
-              blocker: "Date exacte de l'incident non confirmée",
-              expectation: "Souhaite savoir quand le dossier pourra avancer",
-              nextStep: "Rapport et date à confirmer avant traitement"
+              blocker: "Aucun retour envoyé au client depuis l'ouverture du dossier",
+              expectation: "Souhaite enfin obtenir un retour clair et une suite concrète",
+              nextStep: "Reprendre le dossier, expliquer le retard et confirmer la prochaine étape",
+              urgency: "Moyenne",
+              risk: "Moyen",
+              emotionHighlights: {
+                "Frustré": [
+                  "Louis-David rappelle qu'il attend depuis 3 semaines sans aucun retour",
+                  "Il répète qu'il a eu un accident et que son dossier semble bloqué",
+                  "Le manque de suivi alimente une forte frustration dès le début de l'appel"
+                ],
+                "Hésitant": [
+                  "Le client se calme un peu mais doute encore de la prise en charge",
+                  "Il cherche à comprendre pourquoi aucun conseiller ne l'a recontacté",
+                  "Il veut être certain que l'accident est bien pris en compte dans le dossier"
+                ],
+                "Calme": [
+                  "Le client comprend enfin l'état d'avancement du dossier",
+                  "Les explications sur le retard réduisent nettement la tension",
+                  "Il écoute les prochaines étapes et accepte le plan proposé"
+                ],
+                "Satisfait": [
+                  "Louis-David a maintenant un retour clair sur son accident",
+                  "Il sait pourquoi il n'a pas eu de nouvelles pendant 3 semaines",
+                  "La prochaine étape est comprise et le client termine l'appel rassuré"
+                ]
+              },
+              conversationFacts: [
+                "Le client dit attendre depuis 3 semaines sans rappel",
+                "L'accident est déjà déclaré mais il n'a reçu aucun retour",
+                "Le ton démarre frustré puis se détend quand la situation est clarifiée",
+                "Une explication claire du retard aide à rétablir la confiance"
+              ]
             }
           },
           {
@@ -582,7 +621,7 @@
                                 mouth.tongue.scale.z = 1 + talkScale * 0.5;
                             }
                         } else {
-                            mouth.cavity.scale.y += (0.1 - mouth.cavity.scale.y) * 0.2;
+                            mouth.cavity.scale.y += (0.02 - mouth.cavity.scale.y) * 0.24;
                             mouth.cavity.scale.x += (1 - mouth.cavity.scale.x) * 0.2;
                             mouth.group.rotation.z += (0 - mouth.group.rotation.z) * 0.2;
                         }
@@ -622,6 +661,8 @@
                     });
                     group.rotation.z = 0;
                     mouth.group.rotation.z = 0;
+                    mouth.cavity.scale.y = 0.02;
+                    mouth.cavity.scale.x = 1;
                     return;
                 }
 
@@ -660,7 +701,8 @@
           const [isAiActive, setIsAiActive] = useState(true);
           const [emotionIndex, setEmotionIndex] = useState(0);
           const [isCallEnded, setIsCallEnded] = useState(false);
-          const [summaryIndex, setSummaryIndex] = useState(0);
+          const [summaryRevealToken, setSummaryRevealToken] = useState(0);
+          const [visibleSummaryCount, setVisibleSummaryCount] = useState(3);
           
           const [avatarType, setAvatarType] = useState('cat'); // cat, monkey, human
           
@@ -674,42 +716,48 @@
           }, [activeClient, isCallEnded]);
 
           useEffect(() => {
-            if (!isAiActive || isCallEnded) return;
-            const interval = setInterval(() => {
-              setEmotionIndex((prev) => (prev + 1) % aiEmotions.length);
-            }, 4000);
-            return () => clearInterval(interval);
-          }, [isAiActive, isCallEnded]);
+            const handleGlobalClick = (event) => {
+              if (!emotionClickConfig.enabled) return;
+              if (!emotionClickConfig.canChangeEmotion({ isAiActive, isCallEnded })) return;
 
-          useEffect(() => {
-            if (!isAiActive || isCallEnded) return;
-            const interval = setInterval(() => {
-              setSummaryIndex((prev) => prev + 1);
-            }, 5000);
-            return () => clearInterval(interval);
-          }, [isAiActive, isCallEnded, activeClient.id]);
+              const clickedInteractive = emotionClickConfig.ignoredSelectors.some((selector) =>
+                event.target.closest(selector)
+              );
+              if (clickedInteractive) return;
+
+              const sequence = activeClient.emotionSequence?.length
+                ? activeClient.emotionSequence
+                : emotionClickConfig.fallbackSequence;
+
+              if (emotionIndex >= sequence.length - 1) return;
+
+              setEmotionIndex(emotionIndex + 1);
+              setVisibleSummaryCount(0);
+              setSummaryRevealToken((prev) => prev + 1);
+            };
+
+            window.addEventListener("click", handleGlobalClick);
+            return () => window.removeEventListener("click", handleGlobalClick);
+          }, [activeClient, isAiActive, isCallEnded, emotionIndex]);
 
           const handleClientSelect = (client) => {
             setActiveClient(client);
             setCallDuration(parseTime(client.timer));
             setEmotionIndex(0);
-            setSummaryIndex(0);
             setIsCallEnded(false);
+            setVisibleSummaryCount(3);
             setIsDropdownOpen(false);
           };
 
           const handleEndCall = () => {
             setIsCallEnded(true);
             setIsAiActive(false);
+            setCallDuration(0);
             setIsDropdownOpen(false);
           };
 
-          const handleResumeCall = () => {
-            setIsCallEnded(false);
-            setIsAiActive(true);
-          };
-
-          const currentEmotion = aiEmotions[emotionIndex];
+          const emotionLabel = activeClient.emotionSequence?.[emotionIndex] || aiEmotions[emotionIndex]?.label || aiEmotions[0].label;
+          const currentEmotion = aiEmotions.find((emotion) => emotion.label === emotionLabel) || aiEmotions[0];
           const moodAction = emotionActionMap[currentEmotion.label];
           const displayedSuggestions = activeClient.suggestions.map((sugg) => ({
             ...sugg,
@@ -735,26 +783,27 @@
             },
             ...displayedSuggestions
           ];
-          const liveSummaryPool = [
-            activeClient.context?.incident || "Incident en cours de qualification",
-            activeClient.context?.wait || "Aucun délai sensible signalé",
-            activeClient.context?.blocker ? `Blocage actuel : ${activeClient.context.blocker}` : "Aucun blocage majeur détecté",
-            activeClient.context?.expectation ? `Attente client: ${activeClient.context.expectation}` : "Besoin client a preciser",
-            activeClient.context?.nextStep ? `Suite proposée : ${activeClient.context.nextStep}` : "Suite à définir",
-            ...(activeClient.context?.conversationFacts || []),
-            currentEmotion.label === "Paniqué"
-              ? "Le client semble stressé et a besoin d'être guidé pas à pas"
-              : currentEmotion.label === "Frustré"
-              ? "Le client exprime de l'impatience face au délai ou au manque d'avancement"
-              : currentEmotion.label === "Hésitant"
-              ? "Le client cherche à être rassuré avant de confirmer la suite"
-              : currentEmotion.label === "Satisfait"
-              ? "Le client réagit positivement et accepte plus facilement les prochaines étapes"
-              : "Le client reste coopératif et ouvert aux clarifications"
-          ];
-          const liveConversationSummary = Array.from({ length: 3 }, (_, offset) => {
-            return liveSummaryPool[(summaryIndex + offset) % liveSummaryPool.length];
-          });
+          const emotionSpecificSummary = activeClient.context?.emotionHighlights?.[currentEmotion.label] || [];
+          const liveSummaryPool = emotionSpecificSummary.length
+            ? emotionSpecificSummary
+            : [
+                activeClient.context?.incident || "Incident en cours de qualification",
+                activeClient.context?.wait || "Aucun délai sensible signalé",
+                activeClient.context?.blocker ? `Blocage actuel : ${activeClient.context.blocker}` : "Aucun blocage majeur détecté",
+                activeClient.context?.expectation ? `Attente client : ${activeClient.context.expectation}` : "Besoin client à préciser",
+                activeClient.context?.nextStep ? `Suite proposée : ${activeClient.context.nextStep}` : "Suite à définir",
+                ...(activeClient.context?.conversationFacts || []),
+                currentEmotion.label === "Paniqué"
+                  ? "Le client semble stressé et a besoin d'être guidé pas à pas"
+                  : currentEmotion.label === "Frustré"
+                  ? "Le client exprime de l'impatience face au délai ou au manque d'avancement"
+                  : currentEmotion.label === "Hésitant"
+                  ? "Le client cherche à être rassuré avant de confirmer la suite"
+                  : currentEmotion.label === "Satisfait"
+                  ? "Le client réagit positivement et accepte plus facilement les prochaines étapes"
+                  : "Le client reste coopératif et ouvert aux clarifications"
+              ];
+          const liveConversationSummary = liveSummaryPool.slice(0, 3);
           const summaryMeta = [
             { label: "Urgence", value: activeClient.context?.urgency || "Moyenne", tone: activeClient.context?.urgency === "Élevée" ? "red" : activeClient.context?.urgency === "Faible" ? "emerald" : "amber" },
             { label: "Risque", value: activeClient.context?.risk || "Moyen", tone: activeClient.context?.risk === "Élevé" ? "red" : activeClient.context?.risk === "Faible" ? "emerald" : "amber" },
@@ -767,6 +816,23 @@
                 activeClient.context?.nextStep || `Prochaine action: ${activeClient.suggestions[0]?.title || 'A confirmer'}`
               ]
             : liveConversationSummary;
+
+          useEffect(() => {
+            if (isCallEnded) {
+              setVisibleSummaryCount(summaryPoints.length);
+              return;
+            }
+
+            let currentCount = 0;
+            setVisibleSummaryCount(0);
+            const interval = setInterval(() => {
+              currentCount += 1;
+              setVisibleSummaryCount(currentCount);
+              if (currentCount >= summaryPoints.length) clearInterval(interval);
+            }, 7000);
+
+            return () => clearInterval(interval);
+          }, [summaryRevealToken, summaryPoints.length, isCallEnded, emotionIndex, activeClient.id]);
 
           return (
             <div className="flex h-screen w-full" onClick={() => isDropdownOpen && setIsDropdownOpen(false)}>
@@ -877,11 +943,17 @@
                         </div>
                     </div>
                     
-                    <div className={`flex-1 flex flex-col items-center justify-center transition-all duration-500 ${!isAiActive ? 'grayscale opacity-60' : ''}`}>
+                    <div className={`flex-1 flex flex-col items-center justify-center transition-all duration-500 ${(!isAiActive || isCallEnded) ? 'grayscale opacity-60' : ''}`}>
                       <div className="relative w-56 h-56 bg-gradient-to-br from-gray-50 to-gray-200 rounded-full shadow-inner border border-gray-200 flex items-center justify-center mb-6">
                           
                           {/* LE MOTEUR 3D */}
                           <ThreeJSAvatar type={avatarType} isActive={isAiActive && !isCallEnded} emotionLabel={isAiActive && !isCallEnded ? currentEmotion.label : "Inactif"} />
+
+                          {(!isAiActive || isCallEnded) && (
+                            <div className="absolute top-5 right-5 z-20 text-gray-500 animate-fade-in">
+                              <span className="text-lg font-black leading-none">Zzz</span>
+                            </div>
+                          )}
                           
                           {/* Indicateur Micro */}
                           <div className={`absolute -bottom-2 -right-2 z-20 w-11 h-11 rounded-full flex items-center justify-center shadow-xl border-[3px] transition-all duration-500 ${isAiActive && !isCallEnded ? `${currentEmotion.border} bg-[#111827]` : 'border-gray-300 bg-white'}`}>
@@ -895,9 +967,14 @@
                           <div className={`w-full py-3 rounded-xl text-sm font-bold flex justify-center items-center space-x-2 border shadow-sm transition-all duration-500 ${isCallEnded ? 'bg-red-50 text-red-600 border-red-200' : isAiActive ? `${currentEmotion.bg} ${currentEmotion.color} ${currentEmotion.border}` : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
                             <i className={`fas ${isCallEnded ? 'fa-phone-slash' : isAiActive ? 'fa-heartbeat animate-pulse' : 'fa-power-off'} text-xs`}></i>
                             <span key={emotionIndex + "label"} className="animate-fade-in uppercase tracking-wide">
-                              {isCallEnded ? 'Appel terminé' : isAiActive ? currentEmotion.label : 'Analyse coupée'}
+                              {isCallEnded ? 'Appel terminé' : isAiActive ? currentEmotion.label : 'IA en veille'}
                             </span>
                           </div>
+                          {(!isAiActive || isCallEnded) && (
+                            <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+                              {isCallEnded ? "Fin d'appel" : "En veille"}
+                            </p>
+                          )}
                       </div>
                     </div>
 
@@ -910,11 +987,12 @@
                         <span>{isAiActive ? "Couper l'IA" : "Relancer l'IA"}</span>
                       </button>
                       <button 
-                        onClick={isCallEnded ? handleResumeCall : handleEndCall}
-                        className={`w-full py-3 rounded-xl font-bold text-sm border-2 flex items-center justify-center space-x-2 transition-all active:scale-95 ${isCallEnded ? 'bg-emerald-50 border-emerald-500 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 border-red-500 text-red-600 hover:bg-red-100'}`}
+                        onClick={handleEndCall}
+                        disabled={isCallEnded}
+                        className={`w-full py-3 rounded-xl font-bold text-sm border-2 flex items-center justify-center space-x-2 transition-all active:scale-95 ${isCallEnded ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'bg-red-50 border-red-500 text-red-600 hover:bg-red-100'}`}
                       >
-                        <i className={`fas ${isCallEnded ? 'fa-phone' : 'fa-phone-slash'}`}></i>
-                        <span>{isCallEnded ? "Reprendre" : "Terminer"}</span>
+                        <i className="fas fa-phone-slash"></i>
+                        <span>{isCallEnded ? "Appel terminé" : "Terminer"}</span>
                       </button>
                     </div>
                   </div>
@@ -1005,7 +1083,7 @@
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {summaryPoints.map((point, index) => (
+                    {summaryPoints.slice(0, visibleSummaryCount).map((point, index) => (
                       <div key={index} className="rounded-2xl bg-[#F8FAFC] border border-gray-100 px-4 py-4 flex items-start space-x-3">
                         <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isCallEnded ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                           {index + 1}
@@ -1037,7 +1115,7 @@
                   {!isCallEnded && (
                     <div className="mt-3 flex items-center space-x-2 text-[11px] text-gray-500">
                       <i className="fas fa-circle text-[6px] text-blue-500"></i>
-                      <span>Les points défilent automatiquement pour faire remonter les faits utiles sans surcharger l'écran.</span>
+                      <span>Chaque clic de souris fait avancer l'échange vers l'étape émotionnelle suivante.</span>
                     </div>
                   )}
                 </section>
