@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Agent - Clean UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans:['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            orange: '#FF6B35',
+                            black: '#0F0F0F',
+                            bg: '#EAEBEE', // Fond légèrement plus gris comme sur la maquette
+                            gray: '#8C8C8C',
+                            light: '#F4F5F7'
+                        }
+                    },
+                    animation: {
+                        'waveform': 'waveform 1s ease-in-out infinite',
+                        'bounce-slight': 'bounce-slight 2s infinite'
+                    },
+                    keyframes: {
+                        waveform: {
+                            '0%, 100%': { height: '0.25rem' },
+                            '50%': { height: '1rem' },
+                        },
+                        'bounce-slight': {
+                            '0%, 100%': { transform: 'translateY(-2%)' },
+                            '50%': { transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+        
+        /* Subtle background curves simulation */
+        body {
+            background-image: radial-gradient(circle at 100% 0%, #F5F6F8 0%, transparent 50%), 
+                              radial-gradient(circle at 0% 100%, #FFFFFF 0%, transparent 50%);
+        }
+    </style>
+</head>
+<body class="bg-brand-bg min-h-screen text-brand-black flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white rounded-r-[2rem] shadow-[10px_0_30px_rgba(0,0,0,0.02)] flex flex-col h-screen py-8 px-6 hidden md:flex relative z-10">
+        <!-- Logo -->
+        <div class="flex items-center justify-center mb-12">
+            <div class="w-12 h-12 bg-brand-orange text-white rounded-full flex items-center justify-center text-2xl shadow-lg shadow-brand-orange/30">
+                <i class="fas fa-fire"></i>
+            </div>
+        </div>
+
+        <!-- Menu -->
+        <nav class="flex-1 space-y-2">
+            <a href="#" class="flex items-center space-x-4 px-4 py-3 bg-brand-light/80 text-brand-black font-bold rounded-2xl relative overflow-hidden">
+                <div class="absolute left-0 top-1/2 transform -translate-y-1/2 w-1.5 h-8 bg-brand-black rounded-r-md"></div>
+                <i class="fas fa-border-all text-xl ml-1"></i>
+                <span>Overview</span>
+            </a>
+            <a href="#" class="flex items-center justify-between px-4 py-3 text-brand-gray hover:text-brand-black hover:bg-brand-light/50 rounded-2xl transition-colors font-medium">
+                <div class="flex items-center space-x-4">
+                    <i class="far fa-comment-dots text-xl"></i>
+                    <span>Messages</span>
+                </div>
+                <span class="bg-red-500 text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full">2</span>
+            </a>
+            <a href="#" class="flex items-center space-x-4 px-4 py-3 text-brand-gray hover:text-brand-black hover:bg-brand-light/50 rounded-2xl transition-colors font-medium">
+                <i class="far fa-calendar-alt text-xl"></i>
+                <span>Calendar</span>
+            </a>
+            <a href="#" class="flex items-center space-x-4 px-4 py-3 text-brand-gray hover:text-brand-black hover:bg-brand-light/50 rounded-2xl transition-colors font-medium">
+                <i class="fas fa-chart-bar text-xl"></i>
+                <span>Statistics</span>
+            </a>
+            <a href="#" class="flex items-center space-x-4 px-4 py-3 text-brand-gray hover:text-brand-black hover:bg-brand-light/50 rounded-2xl transition-colors font-medium">
+                <i class="far fa-file-alt text-xl"></i>
+                <span>Documents</span>
+            </a>
+        </nav>
+
+        <div class="space-y-2">
+            <a href="#" class="flex items-center space-x-4 px-4 py-3 text-brand-gray hover:text-brand-black hover:bg-brand-light/50 rounded-2xl transition-colors font-medium">
+                <i class="fas fa-cog text-xl"></i>
+                <span>Settings</span>
+            </a>
+        </div>
+
+        <!-- Bottom Profile (Added based on new image) -->
+        <div class="mt-8 pt-6 border-t border-gray-100 flex flex-col items-center relative">
+            <!-- Decorative black curves simulation for profile -->
+            <div class="absolute -bottom-8 -left-6 w-12 h-24 bg-brand-black rounded-tr-full opacity-100"></div>
+            <div class="absolute -bottom-8 -right-6 w-12 h-24 bg-brand-black rounded-tl-full opacity-100"></div>
+            
+            <img src="https://i.pravatar.cc/150?img=11" alt="Mark John" class="w-14 h-14 rounded-full border-4 border-white shadow-md relative z-10">
+            <span class="font-bold text-sm mt-3 relative z-10">Mark John</span>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto p-10">
+        
+        <!-- Top Header -->
+        <header class="flex items-center justify-between mb-12">
+            <!-- Left Header -->
+            <div class="flex items-center space-x-4 bg-white rounded-full p-2 pr-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-50">
+                <div class="flex items-center space-x-2 text-brand-black font-bold text-sm pl-4 pr-6 border-r border-gray-100">
+                    <i class="far fa-calendar"></i>
+                    <span>2 September</span>
+                </div>
+                
+                <div class="flex items-center space-x-3 pl-2">
+                    <div class="w-8 h-8 rounded-full bg-brand-orange flex items-center justify-center text-white">
+                        <i class="fas fa-fire text-xs"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-brand-gray leading-tight">Fire cases</p>
+                        <p class="text-xs font-bold text-brand-black">+120</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Action Pills -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white shadow-md cursor-pointer hover:opacity-90 transition">
+                    <i class="fas fa-car text-sm"></i>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white shadow-md cursor-pointer hover:opacity-90 transition">
+                    <i class="fas fa-capsules text-sm"></i>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-brand-black flex items-center justify-center text-white shadow-md cursor-pointer hover:opacity-90 transition">
+                    <i class="fas fa-plus text-sm"></i>
+                </div>
+            </div>
+
+            <!-- Right Header Search & Profile -->
+            <div class="flex items-center space-x-6">
+                <div class="relative bg-white rounded-full flex items-center px-5 py-3 w-80 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-50">
+                    <i class="fas fa-search text-gray-400 mr-3"></i>
+                    <input type="text" placeholder="Search" class="bg-transparent border-none outline-none text-sm w-full font-medium placeholder-gray-400">
+                </div>
+                <div class="w-12 h-12 rounded-full bg-brand-black flex items-center justify-center text-white shadow-lg relative cursor-pointer">
+                    <i class="fas fa-bell"></i>
+                    <div class="absolute top-0 right-0 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                        <div class="w-2 h-2 bg-brand-orange rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Available Insurances</h1>
+            
+            <!-- Active Call Pill (Moved here for better layout) -->
+            <div class="bg-white rounded-full px-4 py-2 flex items-center space-x-3 shadow-sm border border-brand-light">
+                <div class="w-6 h-6 rounded-full bg-brand-orange flex items-center justify-center text-white animate-pulse">
+                    <i class="fas fa-phone-alt text-[10px]"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-brand-black leading-tight">Appel: Jean Dupont</p>
+                    <p class="text-[9px] font-bold text-brand-orange uppercase">En ligne - 04:23</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- LEFT PANEL: IA AVATAR (White Card) -->
+            <div class="bg-white rounded-[2rem] p-6 shadow-[0_10px_40px_rgba(0,0,0,0.04)] flex flex-col relative h-[420px] border border-white">
+                <div class="w-full flex justify-between items-center mb-4">
+                    <span class="font-bold text-sm bg-brand-light text-brand-black px-4 py-2 rounded-full border border-gray-100">Assistant IA</span>
+                    <i class="fas fa-robot text-brand-orange text-xl"></i>
+                </div>
+                
+                <div class="flex-1 flex flex-col items-center justify-center animate-bounce-slight">
+                    <!-- Avatar -->
+                    <div class="w-28 h-28 bg-brand-light rounded-full flex items-center justify-center relative mb-5 shadow-inner">
+                        <span class="text-6xl">😾</span>
+                        <div class="absolute -bottom-1 -right-1 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-50">
+                            <i class="fas fa-bolt text-brand-orange"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs font-bold text-brand-gray uppercase tracking-wider mb-2">Humeur Détectée</p>
+                    <div class="bg-brand-black text-white px-5 py-2 rounded-full text-sm font-bold flex items-center space-x-2 shadow-md">
+                        <span>Frustré</span>
+                        <i class="fas fa-level-down-alt text-brand-orange"></i>
+                    </div>
+                </div>
+
+                <!-- NEW: ELIMINATE AI AGENT BUTTON -->
+                <button class="mt-auto w-full group relative overflow-hidden bg-white border-2 border-gray-100 hover:border-red-500 rounded-2xl py-3.5 flex items-center justify-center space-x-2 transition-all duration-300 shadow-sm">
+                    <div class="absolute inset-0 w-0 bg-red-500 transition-all duration-300 ease-out group-hover:w-full opacity-10"></div>
+                    <i class="fas fa-power-off text-gray-400 group-hover:text-red-500 transition-colors"></i>
+                    <span class="font-bold text-sm text-brand-gray group-hover:text-red-500 transition-colors">Désactiver l'IA</span>
+                </button>
+            </div>
+
+            <!-- CENTER PANEL: Auto-populated Info (White Card) -->
+            <div class="bg-white rounded-[2rem] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] flex flex-col relative h-[420px]">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-lg font-bold">Détails du Client</h2>
+                    <div class="flex items-center space-x-2 bg-green-50 text-green-600 px-3 py-1.5 rounded-full text-[11px] font-bold border border-green-100">
+                        <i class="fas fa-microphone animate-pulse"></i>
+                        <span>Complétion auto</span>
+                    </div>
+                </div>
+
+                <div class="space-y-6 flex-1">
+                    <div class="flex flex-col border-b border-gray-100 pb-3">
+                        <div class="flex items-center space-x-2 text-brand-gray mb-1">
+                            <i class="fas fa-user text-xs"></i>
+                            <span class="text-xs font-bold uppercase tracking-wide">Nom</span>
+                        </div>
+                        <span class="font-extrabold text-brand-black text-lg">Jean Dupont</span>
+                    </div>
+                    
+                    <div class="flex flex-col border-b border-gray-100 pb-3">
+                        <div class="flex items-center space-x-2 text-brand-gray mb-1">
+                            <i class="fas fa-shield-alt text-xs"></i>
+                            <span class="text-xs font-bold uppercase tracking-wide">Numéro de Police</span>
+                        </div>
+                        <span class="font-bold text-brand-black font-mono bg-brand-light inline-block px-3 py-1 rounded-md w-max">POL-2026-9876</span>
+                    </div>
+
+                    <div class="flex flex-col border-b border-gray-100 pb-3">
+                        <div class="flex items-center space-x-2 text-brand-gray mb-1">
+                            <i class="fas fa-file-invoice text-xs"></i>
+                            <span class="text-xs font-bold uppercase tracking-wide">Sinistre</span>
+                        </div>
+                        <span class="font-bold text-brand-black font-mono bg-brand-light inline-block px-3 py-1 rounded-md w-max">CLM-4512-AB</span>
+                    </div>
+
+                    <div class="flex items-center justify-between bg-brand-light/50 p-4 rounded-xl border border-gray-50">
+                        <div class="flex items-center space-x-3 text-brand-gray font-bold text-sm">
+                            <i class="fas fa-spinner"></i>
+                            <span>Statut:</span>
+                        </div>
+                        <span class="font-bold text-brand-orange bg-white px-3 py-1 rounded-lg shadow-sm">En attente</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: Suggestions (Black Card) -->
+            <div class="bg-brand-black text-white rounded-[2rem] p-8 shadow-xl shadow-brand-black/20 flex flex-col relative h-[420px]">
+                <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-1">
+                            <i class="fas fa-lightbulb text-brand-orange text-lg"></i>
+                            <h2 class="text-xl font-bold">Actions Suggérées</h2>
+                        </div>
+                        <p class="text-xs text-gray-400 font-medium ml-6">Analyse NBI en temps réel</p>
+                    </div>
+                    <div class="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/10 transition">
+                        <i class="fas fa-chevron-right text-xs"></i>
+                    </div>
+                </div>
+
+                <div class="space-y-4 flex-1">
+                    <!-- Suggestion 1 -->
+                    <button class="w-full text-left bg-white/5 hover:bg-white/10 transition-colors p-4 rounded-[1.25rem] flex items-center space-x-4 border border-white/10">
+                        <div class="w-12 h-12 rounded-full bg-brand-orange/20 text-brand-orange flex items-center justify-center shrink-0">
+                            <i class="fas fa-file-signature text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm text-white">Demander le rapport</p>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Nécessaire pour l'assurance auto</p>
+                        </div>
+                    </button>
+
+                    <!-- Suggestion 2 -->
+                    <button class="w-full text-left bg-white/5 hover:bg-white/10 transition-colors p-4 rounded-[1.25rem] flex items-center space-x-4 border border-white/10">
+                        <div class="w-12 h-12 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+                            <i class="fas fa-calendar-check text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm text-white">Confirmer la date</p>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Date de l'incident manquante</p>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
+                    <div class="flex items-center space-x-2 text-xs font-bold text-green-400">
+                        <i class="fas fa-heartbeat"></i> 
+                        <span>Empathie recommandée</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+</body>
+</html>
